@@ -6,3 +6,9 @@ streamlit
 pytest
 contextily
 pyproj
+pyarrow
+beautifulsoup4
+requests
+selenium
+webdriver-manager
+chardet
