@@ -130,14 +130,14 @@ def render_metrics(ctrl: FleetController, filters: dict) -> None:
     col1.metric("Statki na liście", len(fleet_filtered))
     col2.metric("Unikalne MMSI w AIS", ais_filtered["mmsi"].nunique())
     col3.metric("Rekordów AIS", f"{len(ais_filtered):,}")
-    col4.metric(
-        "Objętych sankcjami",
-        int(fleet_filtered.get("sanctioned", pd.Series([False])).sum()),
-    )
-    col5.metric(
-        "Z fałszywą banderą",
-        int(fleet_filtered.get("false_flag", pd.Series([False])).sum()),
-    )
+    # col4.metric(
+    #     "Objętych sankcjami",
+    #     int(fleet_filtered.get("sanctioned", pd.Series([False])).sum()),
+    # )
+    # col5.metric(
+    #     "Z fałszywą banderą",
+    #     int(fleet_filtered.get("false_flag", pd.Series([False])).sum()),
+    # )
 
 
 # ── zakładki ─────────────────────────────────────────────────────────────────
@@ -650,9 +650,9 @@ def main() -> None:
     # tytuł
     st.title("🚢 Analiza Floty Cieni")
     st.markdown(
-        f"Aktywność irańskiej i rosyjskiej floty cieni w danych AIS (2025–2026) "
-        f"| Filtr: **{filters['fleet_label']}** "
-        f"| {filters['date_from']} – {filters['date_to']}"
+        f"Aktywność rosyjskiej floty cieni w danych AIS (DMA Bałtyk, 2025–2026)"
+        # f"| Filtr: **{filters['fleet_label']}** "
+        # f"| {filters['date_from']} – {filters['date_to']}"
     )
 
     # metryki
