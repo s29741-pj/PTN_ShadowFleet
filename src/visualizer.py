@@ -131,7 +131,7 @@ def plot_fleet_activity(df: pd.DataFrame, fleet: Optional[str] = None) -> plt.Fi
     fig, ax = plt.subplots(figsize=(12, 4))
 
     df = df.copy()
-    df = df[(df["month"] >= "2025-01-01") & (df["month"] <= "2025-12-31")]
+	df = df[(df["month"] >= "2026-02-01") & (df["month"] <= "2026-03-31")]
 
     color = PALETTE_FLEET.get(fleet, "#2a9d8f") if fleet else "#2a9d8f"
 
@@ -802,7 +802,7 @@ def plot_tonnage_distribution(df: pd.DataFrame) -> plt.Figure:
 
     bp = ax.boxplot(
         list(data),
-        labels=list(labels),
+        tick_labels=list(labels),
         patch_artist=True,
         notch=False,
         showfliers=False,
@@ -1034,7 +1034,7 @@ def plot_anomaly_map(
         all_ais   – DataFrame wszystkich pingow AIS (do rysowania tras)
         top_n     – liczba statkow z najwieksza liczba anomalii
     """
-    import matplotlib.cm as cm
+
     import contextily as cx
     from pyproj import Transformer
 
@@ -1062,7 +1062,7 @@ def plot_anomaly_map(
         return fig
 
     # kolory per statek
-    cmap = cm.get_cmap("tab20", len(top_mmsi))
+    cmap = plt.colormaps["tab20"].resampled(len(top_mmsi))
     color_map = {mmsi: cmap(i) for i, mmsi in enumerate(top_mmsi)}
 
     # etykiety: nazwa z Equasis lub MMSI
