@@ -145,7 +145,7 @@ def plot_fleet_activity(df: pd.DataFrame, fleet: Optional[str] = None) -> plt.Fi
         markersize=4,
     )
 
-    title = f"Aktywność AIS – {'flota ' + fleet if fleet else 'wszystkie floty'}"
+    title = "Aktywność rosyjskiej floty cieni – Bałtyk (luty–marzec 2026)"
     ax.set_title(title, fontsize=14, fontweight="bold")
     ax.set_xlabel("")
     ax.set_ylabel("Liczba pingów AIS")
@@ -378,7 +378,6 @@ def plot_fleet_growth(df: pd.DataFrame) -> plt.Figure:
 
     fig.tight_layout()
     return fig
-
 
 def plot_flag_hopping(df: pd.DataFrame, top_n: int = 20) -> plt.Figure:
     """
@@ -958,6 +957,243 @@ def plot_classification_society(df: pd.DataFrame, top_n: int = 10) -> plt.Figure
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
 
+    fig.tight_layout()
+    return fig
+
+def plot_hourly_activity(df: pd.DataFrame) -> plt.Figure:
+    """
+    Histogram aktywności AIS per godzina doby.
+    Pokazuje czy rosyjska flota cieni jest bardziej aktywna nocą.
+
+    Parametry:
+        df – DataFrame AIS z kolumną timestamp
+    """
+    fig, ax = plt.subplots(figsize=(12, 5))
+
+    df = df.copy()
+    df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
+    df = df.dropna(subset=["timestamp"])
+
+    if df.empty:
+        ax.text(
+            0.5,
+            0.5,
+            "Brak danych z timestampem",
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+        )
+        fig.tight_layout()
+        return fig
+
+    hours = df["timestamp"].dt.hour
+
+    ax.hist(
+        hours, bins=24, range=(0, 24), color="#457b9d", edgecolor="white", alpha=0.85
+    )
+
+    # zaznacz noc (22:00–06:00)
+    ax.axvspan(0, 6, alpha=0.08, color="#e63946", label="Noc (00–06)")
+    ax.axvspan(22, 24, alpha=0.08, color="#e63946")
+
+    # linia średniej
+    mean_hour = hours.mean()
+    ax.axvline(
+        mean_hour,
+        color="#e63946",
+        linestyle="--",
+        linewidth=1.5,
+        label=f"Średnia: {mean_hour:.1f}h",
+    )
+
+    ax.set_title(
+        "Aktywność AIS per godzina doby – rosyjska flota cieni",
+        fontsize=14,
+        fontweight="bold",
+    )
+    ax.set_xlabel("Godzina (UTC)")
+    ax.set_ylabel("Liczba pingów AIS")
+    ax.set_xticks(range(0, 25, 2))
+    ax.set_xticklabels([f"{h:02d}:00" for h in range(0, 25, 2)], rotation=45)
+    ax.legend()
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+    fig.tight_layout()
+    return fig
+
+
+def plot_anomaly_map(
+    anomalies: pd.DataFrame, all_ais: pd.DataFrame, top_n: int = 15
+) -> plt.Figure:
+    """
+    Mapa tras podejrzanych statków z zaznaczonymi anomaliami i podkladem geograficznym.
+
+    Parametry:
+        anomalies – DataFrame wynikow detektora
+        all_ais   – DataFrame wszystkich pingow AIS (do rysowania tras)
+        top_n     – liczba statkow z najwieksza liczba anomalii
+    """
+    import matplotlib.cm as cm
+    import contextily as cx
+    from pyproj import Transformer
+
+    fig, ax = plt.subplots(figsize=(14, 9))
+
+    # wybierz top N statkow
+    top_mmsi = (
+        anomalies.dropna(subset=["latitude", "longitude"])
+        .groupby("mmsi")
+        .size()
+        .nlargest(top_n)
+        .index.tolist()
+    )
+
+    if not top_mmsi:
+        ax.text(
+            0.5,
+            0.5,
+            "Brak danych pozycyjnych dla anomalii",
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+        )
+        fig.tight_layout()
+        return fig
+
+    # kolory per statek
+    cmap = cm.get_cmap("tab20", len(top_mmsi))
+    color_map = {mmsi: cmap(i) for i, mmsi in enumerate(top_mmsi)}
+
+    # etykiety: nazwa z Equasis lub MMSI
+    name_col = (
+        "vessel_name"
+        if "vessel_name" in anomalies.columns
+        else (next((c for c in anomalies.columns if c.startswith("name")), None))
+    )
+
+    label_map = {}
+    for mmsi in top_mmsi:
+        rows = anomalies[anomalies["mmsi"] == mmsi]
+        label = mmsi
+        if name_col and name_col in rows.columns:
+            val = rows[name_col].dropna()
+            if len(val) and str(val.iloc[0]).strip() not in ("", "nan", "None"):
+                label = str(val.iloc[0])[:20]
+        label_map[mmsi] = label
+
+    # transformacja WGS84 -> Web Mercator (wymagane przez contextily)
+    transformer = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+
+    def to_mercator(lon, lat):
+        return transformer.transform(lon, lat)
+
+    # rysuj pelne trasy
+    ais_subset = all_ais[all_ais["mmsi"].isin(top_mmsi)].copy()
+    ais_subset = ais_subset.dropna(subset=["latitude", "longitude"])
+
+    all_x, all_y = [], []
+
+    for mmsi in top_mmsi:
+        color = color_map[mmsi]
+        track = (
+            ais_subset[ais_subset["mmsi"] == mmsi]
+            .sort_values("timestamp")
+            .dropna(subset=["latitude", "longitude"])
+        )
+
+        if track.empty:
+            continue
+
+        x, y = to_mercator(track["longitude"].values, track["latitude"].values)
+        all_x.extend(x)
+        all_y.extend(y)
+
+        ax.plot(x, y, color=color, linewidth=1.2, alpha=0.55, zorder=2)
+        ax.scatter(x, y, color=color, s=5, alpha=0.35, zorder=3)
+
+    # rysuj anomalie jako gwiazdki
+    anom_subset = anomalies[anomalies["mmsi"].isin(top_mmsi)].dropna(
+        subset=["latitude", "longitude"]
+    )
+
+    for mmsi in top_mmsi:
+        color = color_map[mmsi]
+        anom = anom_subset[anom_subset["mmsi"] == mmsi]
+        if anom.empty:
+            continue
+        x, y = to_mercator(anom["longitude"].values, anom["latitude"].values)
+        ax.scatter(
+            x,
+            y,
+            color=color,
+            s=150,
+            marker="*",
+            edgecolors="white",
+            linewidths=0.6,
+            zorder=5,
+            label=label_map[mmsi],
+        )
+
+    # dopasuj zakres osi do danych z marginesem
+    if all_x and all_y:
+        margin_x = (max(all_x) - min(all_x)) * 0.05 or 50000
+        margin_y = (max(all_y) - min(all_y)) * 0.05 or 50000
+        ax.set_xlim(min(all_x) - margin_x, max(all_x) + margin_x)
+        ax.set_ylim(min(all_y) - margin_y, max(all_y) + margin_y)
+
+    # podklad geograficzny – zoom=6 żeby nie pobierać za dużo kafelków
+    try:
+        cx.add_basemap(
+            ax,
+            crs="EPSG:3857",
+            source=cx.providers.CartoDB.DarkMatter,
+            zoom=6,
+            alpha=0.85,
+        )
+    except Exception as e1:
+        try:
+            cx.add_basemap(
+                ax,
+                crs="EPSG:3857",
+                source=cx.providers.OpenStreetMap.Mapnik,
+                zoom=6,
+                alpha=0.7,
+            )
+        except Exception as e2:
+            # fallback: ciemne tło bez kafelków
+            ax.set_facecolor("#1a1a2e")
+            print(f"contextily: {e1} | {e2}")
+
+    ax.set_title(
+        f"Trasy podejrzanych rejsow – top {top_n} statkow z anomaliami\n"
+        "Linie = pelna trasa AIS  |  \u2605 = wykryta anomalia",
+        fontsize=13,
+        fontweight="bold",
+        color="white" if True else "black",
+        pad=12,
+    )
+    ax.set_xlabel("")
+    ax.set_ylabel("")
+    ax.set_xticks([])
+    ax.set_yticks([])
+
+    # legenda
+    ax.legend(
+        loc="upper left",
+        fontsize=8,
+        markerscale=1.4,
+        title="Statki (\u2605 = anomalia)",
+        title_fontsize=9,
+        framealpha=0.85,
+        facecolor="#1a1a2e",
+        labelcolor="white",
+        edgecolor="gray",
+        ncol=2 if len(top_mmsi) > 8 else 1,
+    )
+
+    fig.patch.set_facecolor("#1a1a2e")
+    ax.title.set_color("white")
     fig.tight_layout()
     return fig
 
