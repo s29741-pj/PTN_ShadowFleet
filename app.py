@@ -421,16 +421,16 @@ def main() -> None:
     col3.metric(
         "Rekordów w próbce", f"{len(ais_sample):,}" if not ais_sample.empty else "—"
     )
-    if "sanctioned" in fleet.columns:
-        col4.metric(
-            "Objętych sankcjami",
-            int(fleet["sanctioned"].astype(str).isin(["True", "true", "1"]).sum()),
-        )
-    if "false_flag" in fleet.columns:
-        col5.metric(
-            "Z fałszywą banderą",
-            int(fleet["false_flag"].astype(str).isin(["True", "true", "1"]).sum()),
-        )
+    # if "sanctioned" in fleet.columns:
+    #     col4.metric(
+    #         "Objętych sankcjami",
+    #         int(fleet["sanctioned"].astype(str).isin(["True", "true", "1"]).sum()),
+    #     )
+    # if "false_flag" in fleet.columns:
+    #     col5.metric(
+    #         "Z fałszywą banderą",
+    #         int(fleet["false_flag"].astype(str).isin(["True", "true", "1"]).sum()),
+    #     )
 
     st.divider()
 
