@@ -35,7 +35,7 @@ DATA_DIR = Path(__file__).parent / "data"
 
 st.set_page_config(
     page_title="Flota Cieni – Analiza AIS",
-    page_icon="🚢",
+    page_icon="",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -113,7 +113,7 @@ def load_parquet_csv(name: str) -> pd.DataFrame:
 
 def render_sidebar() -> None:
     """Renderuje sidebar – tytuł, opis i linki do źródeł."""
-    st.sidebar.title("🚢 Flota Cieni")
+    st.sidebar.title("Flota Cieni")
     st.sidebar.markdown(
         "Analiza aktywności AIS rosyjskiej i irańskiej floty cieni (2025–2026)"
     )
@@ -221,7 +221,7 @@ def render_tab_anomalies() -> None:
 
     st.divider()
 
-    st.subheader("🔍 Najbardziej podejrzane statki")
+    st.subheader("Najbardziej podejrzane statki")
     st.caption(
         "Na podstawie detektora spoofingu pozycji (niemożliwa prędkość między pingami)"
     )
@@ -261,29 +261,6 @@ def render_tab_map() -> None:
         st.map(map_df)
     else:
         st.warning("Brak próbki danych mapy. Uruchom scripts/generate_map_sample.py.")
-
-    st.divider()
-
-    with st.expander("ℹ️ Jak dane AIS dowodzą spoofingu pozycji?", expanded=False):
-        st.markdown("""
-**Spoofing pozycji GPS/AIS** polega na fałszowaniu sygnału nawigacyjnego tak,
-aby system AIS raportował inną lokalizację niż rzeczywista.
-
-**Jak to wykrywamy:**
-Nasz detektor (`SpeedAnomalyDetector`) porównuje kolejne pingi AIS tego samego statku.
-Oblicza odległość między pozycjami wzorem **Haversine** i dzieli przez czas między pingami.
-Jeśli obliczona prędkość przekracza **50 węzłów** – jest to fizycznie niemożliwe dla tankowca
-(maksymalna prędkość to ok. 16–18 węzłów) i wskazuje na sfałszowaną pozycję.
-
-**Co widać na mapie:**
-Przerywane ślady AIS w okolicach Cieśnin Duńskich (Sund, Wielki Bełt) to efekt
-**wyłączania transpondera** przy przejściu przez kluczowy punkt monitoringu NATO/UE.
-
-**Dlaczego Cieśniny Duńskie?**
-To wąskie gardło między Bałtykiem a Morzem Północnym, intensywnie monitorowane przez
-Danię i NATO. Rosyjskie tankowce wyłączają AIS właśnie tu, aby utrudnić śledzenie
-tras i identyfikację ładunku (ropa objęta sankcjami).
-        """)
 
     st.divider()
 
@@ -402,7 +379,7 @@ def render_tab_vessels() -> None:
 def main() -> None:
     render_sidebar()
 
-    st.title("🚢 Analiza Floty Cieni")
+    st.title("Analiza Floty Cieni")
     st.markdown(
         "Statyczna prezentacja aktywności irańskiej i rosyjskiej floty cieni "
         "w danych AIS (luty–marzec 2026)."
@@ -435,7 +412,7 @@ def main() -> None:
     st.divider()
 
     tab1, tab2, tab3, tab4, tab5 = st.tabs(
-        ["📊 Przegląd", "📈 Trendy", "⚠️ Anomalie", "🗺️ Mapa", "🚢 Profil statków"]
+        ["Przegląd", "Trendy", "Anomalie", "Mapa", "Profil statków"]
     )
 
     with tab1:
