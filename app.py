@@ -87,7 +87,7 @@ def render_sidebar(ctrl: FleetController) -> dict:
     )
     st.sidebar.divider()
 
-    fleet = None
+    fleet       = None
     fleet_label = "Wszystkie"
 
     st.sidebar.divider()
@@ -130,14 +130,14 @@ def render_metrics(ctrl: FleetController, filters: dict) -> None:
     col1.metric("Statki na liście", len(fleet_filtered))
     col2.metric("Unikalne MMSI w AIS", ais_filtered["mmsi"].nunique())
     col3.metric("Rekordów AIS", f"{len(ais_filtered):,}")
-    # col4.metric(
-    #     "Objętych sankcjami",
-    #     int(fleet_filtered.get("sanctioned", pd.Series([False])).sum()),
-    # )
-    # col5.metric(
-    #     "Z fałszywą banderą",
-    #     int(fleet_filtered.get("false_flag", pd.Series([False])).sum()),
-    # )
+    col4.metric(
+        "Objętych sankcjami",
+        int(fleet_filtered.get("sanctioned", pd.Series([False])).sum()),
+    )
+    col5.metric(
+        "Z fałszywą banderą",
+        int(fleet_filtered.get("false_flag", pd.Series([False])).sum()),
+    )
 
 
 # ── zakładki ─────────────────────────────────────────────────────────────────
@@ -262,10 +262,8 @@ def render_tab_anomalies(ctrl: FleetController, filters: dict) -> None:
     """Tab 3 – Wykrywanie anomalii."""
     # anomalie wykrywamy tylko dla Rosji – mamy dane AIS z Bałtyku (DMA)
     fleet = "Rosja"
-    st.info(
-        "Dane anomalii AIS dotyczą wyłącznie rosyjskiej floty cieni "
-        "(źródło: Danish Maritime Authority, Bałtyk, luty–marzec 2026)."
-    )
+    st.info("Dane anomalii AIS dotyczą wyłącznie rosyjskiej floty cieni "
+            "(źródło: Danish Maritime Authority, Bałtyk, luty–marzec 2026).")
 
     # zakres dat i detektor – widoczne tylko w tej zakładce
     col1, col2 = st.columns(2)
@@ -382,33 +380,21 @@ def render_tab_anomalies(ctrl: FleetController, filters: dict) -> None:
         vessel_path = Path(__file__).parent / "data" / "vessel_details_enriched.csv"
         if vessel_path.exists():
             vessels = pd.read_csv(vessel_path, dtype=str)[
-                [
-                    "mmsi",
-                    "vessel_name",
-                    "ship_type",
-                    "flag",
-                    "year_built",
-                    "gross_tonnage",
-                    "sanctioned",
-                    "false_flag",
-                ]
+                ["mmsi", "vessel_name", "ship_type", "flag", "year_built",
+                 "gross_tonnage", "sanctioned", "false_flag"]
             ]
             vessels["mmsi"] = vessels["mmsi"].astype(str).str.strip()
             agg["mmsi"] = agg["mmsi"].astype(str).str.strip()
             agg = agg.merge(vessels, on="mmsi", how="left")
 
         st.dataframe(agg.reset_index(drop=True), use_container_width=True)
-        st.caption(
-            "Statki posortowane malejąco według liczby wykrytych anomalii. "
-            "Dane wzbogacone o informacje z Equasis."
-        )
+        st.caption("Statki posortowane malejąco według liczby wykrytych anomalii. "
+                   "Dane wzbogacone o informacje z Equasis.")
 
         # mapa podejrzanych rejsów
         st.divider()
         st.subheader("🗺️ Mapa podejrzanych rejsów")
-        st.caption(
-            "Pozycje statków z wykrytymi anomaliami – każdy kolor to inny typ anomalii"
-        )
+        st.caption("Pozycje statków z wykrytymi anomaliami – każdy kolor to inny typ anomalii")
 
         map_anomalies = anomalies.dropna(subset=["latitude", "longitude"])
 
@@ -434,28 +420,33 @@ def render_tab_anomalies(ctrl: FleetController, filters: dict) -> None:
 
 def render_tab_map(ctrl: FleetController, filters: dict) -> None:
     """Tab 4 – Mapa pozycji statków."""
-    fleet = filters["fleet"]
-    date_from = filters["date_from"]
-    date_to = filters["date_to"]
-
-    ais = ctrl.filter_ais(fleet=fleet, date_from=date_from, date_to=date_to)
-    ais = ais.dropna(subset=["latitude", "longitude"])
-
-    if ais.empty:
-        st.info("Brak danych pozycyjnych dla wybranych filtrów.")
-        return
-
     st.subheader("Pozycje statków floty cieni")
-    st.caption(
-        f"Wyświetlono {min(len(ais), 50_000):,} z {len(ais):,} rekordów (próbka losowa)"
-    )
 
-    # st.map wymaga kolumn lat i lon
-    map_df = (
-        ais[["latitude", "longitude"]]
-        .rename(columns={"latitude": "lat", "longitude": "lon"})
-        .sample(n=min(50_000, len(ais)), random_state=42)
-    )
+    # dane pełne – potrzebne do histogramu godzinowego niezależnie od próbki mapy
+    ais = ctrl.ais_data.dropna(subset=["latitude", "longitude"])
+
+    # zafiksowana próbka wygenerowana raz przez scripts/generate_map_sample.py
+    # (szybsze ładowanie niż losowanie 50k z 924k wierszy przy każdym starcie)
+    sample_path = Path(__file__).parent / "data" / "ais_map_sample.parquet"
+
+    if sample_path.exists():
+        map_sample = pd.read_parquet(sample_path)
+        st.caption(f"Wyświetlono {len(map_sample):,} rekordów "
+                   f"(zafiksowana próbka, luty–marzec 2026)")
+        map_df = map_sample[["latitude", "longitude"]].rename(
+            columns={"latitude": "lat", "longitude": "lon"}
+        )
+    else:
+        # fallback: losowanie na żywo, jeśli próbka nie została wygenerowana
+        st.caption(f"Wyświetlono {min(len(ais), 50_000):,} z {len(ais):,} rekordów "
+                   f"(próbka losowa – uruchom scripts/generate_map_sample.py "
+                   f"dla szybszego ładowania)")
+        map_df = (
+            ais[["latitude", "longitude"]]
+            .rename(columns={"latitude": "lat", "longitude": "lon"})
+            .sample(n=min(50_000, len(ais)), random_state=42)
+        )
+
     st.map(map_df)
 
     st.divider()
@@ -650,9 +641,9 @@ def main() -> None:
     # tytuł
     st.title("🚢 Analiza Floty Cieni")
     st.markdown(
-        f"Aktywność rosyjskiej floty cieni w danych AIS (DMA Bałtyk, 2025–2026)"
-        # f"| Filtr: **{filters['fleet_label']}** "
-        # f"| {filters['date_from']} – {filters['date_to']}"
+        f"Aktywność irańskiej i rosyjskiej floty cieni w danych AIS (2025–2026) "
+        f"| Filtr: **{filters['fleet_label']}** "
+        f"| {filters['date_from']} – {filters['date_to']}"
     )
 
     # metryki
