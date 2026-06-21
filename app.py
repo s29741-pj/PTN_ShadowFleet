@@ -35,7 +35,7 @@ DATA_DIR = Path(__file__).parent / "data"
 
 st.set_page_config(
     page_title="Flota Cieni – Analiza AIS",
-    page_icon="🚢",
+    page_icon="",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -113,7 +113,7 @@ def load_parquet_csv(name: str) -> pd.DataFrame:
 
 def render_sidebar() -> None:
     """Renderuje sidebar – tytuł, opis i linki do źródeł."""
-    st.sidebar.title("🚢 Flota Cieni")
+    st.sidebar.title("Flota Cieni")
     st.sidebar.markdown(
         "Analiza aktywności AIS rosyjskiej i irańskiej floty cieni (2025–2026)"
     )
@@ -221,7 +221,7 @@ def render_tab_anomalies() -> None:
 
     st.divider()
 
-    st.subheader("🔍 Najbardziej podejrzane statki")
+    st.subheader("Najbardziej podejrzane statki")
     st.caption(
         "Na podstawie detektora spoofingu pozycji (niemożliwa prędkość między pingami)"
     )
@@ -241,8 +241,22 @@ def render_tab_anomalies() -> None:
     st.divider()
 
     st.subheader("🗺️ Mapa podejrzanych rejsów")
-    st.caption("Trasy AIS top 15 statków z anomaliami")
-    chart("anomalies_map")
+
+    options = load_parquet("anomalies_map_options")
+    if not options.empty:
+        choice_labels = ["Wszystkie statki"] + options["label"].tolist()
+        choice = st.selectbox("Wybierz statek", choice_labels, key="anomaly_map_choice")
+
+        if choice == "Wszystkie statki":
+            st.caption("Trasy AIS top 8 statków z anomaliami")
+            chart("anomalies_map_all")
+        else:
+            mmsi = options.loc[options["label"] == choice, "mmsi"].iloc[0]
+            st.caption(f"Trasa AIS statku {choice}")
+            chart(f"anomalies_map_{mmsi}")
+    else:
+        st.caption("Trasy AIS top 8 statków z anomaliami")
+        chart("anomalies_map_all")
 
 
 def render_tab_map() -> None:
@@ -402,7 +416,7 @@ def render_tab_vessels() -> None:
 def main() -> None:
     render_sidebar()
 
-    st.title("🚢 Analiza Floty Cieni")
+    st.title("Analiza Floty Cieni")
     st.markdown(
         "Statyczna prezentacja aktywności irańskiej i rosyjskiej floty cieni "
         "w danych AIS (luty–marzec 2026)."
@@ -421,21 +435,10 @@ def main() -> None:
     col3.metric(
         "Rekordów w próbce", f"{len(ais_sample):,}" if not ais_sample.empty else "—"
     )
-    if "sanctioned" in fleet.columns:
-        col4.metric(
-            "Objętych sankcjami",
-            int(fleet["sanctioned"].astype(str).isin(["True", "true", "1"]).sum()),
-        )
-    if "false_flag" in fleet.columns:
-        col5.metric(
-            "Z fałszywą banderą",
-            int(fleet["false_flag"].astype(str).isin(["True", "true", "1"]).sum()),
-        )
-
     st.divider()
 
     tab1, tab2, tab3, tab4, tab5 = st.tabs(
-        ["📊 Przegląd", "📈 Trendy", "⚠️ Anomalie", "🗺️ Mapa", "🚢 Profil statków"]
+        ["Przegląd", "Trendy", "Anomalie", "Mapa", "Profil statków"]
     )
 
     with tab1:
