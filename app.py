@@ -36,7 +36,6 @@ DATA_DIR = Path(__file__).parent / "data"
 st.set_page_config(
     page_title="Flota Cieni – Analiza AIS",
     page_icon="",
-    page_icon="",
     layout="wide",
     initial_sidebar_state="expanded",
 )
