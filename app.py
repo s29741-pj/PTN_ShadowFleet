@@ -223,7 +223,6 @@ def render_tab_anomalies() -> None:
     st.divider()
 
     st.subheader("Najbardziej podejrzane statki")
-    st.subheader("Najbardziej podejrzane statki")
     st.caption(
         "Na podstawie detektora spoofingu pozycji (niemożliwa prędkość między pingami)"
     )
