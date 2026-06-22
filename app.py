@@ -396,7 +396,6 @@ def main() -> None:
     render_sidebar()
 
     st.title("Analiza Floty Cieni")
-    st.title("Analiza Floty Cieni")
     st.markdown(
         "Statyczna prezentacja aktywności irańskiej i rosyjskiej floty cieni "
         "w danych AIS (luty–marzec 2026)."
